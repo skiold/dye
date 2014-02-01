@@ -54,35 +54,30 @@ def invalid_command(cmd):
     print "For help use --help"
 
 
-def get_public_callables(mod):
-    callables = []
-    if mod:
-        # getmembers returns a list of tuples of from ('name', <function>)
-        all_functions = inspect.getmembers(mod, inspect.isfunction)
-        callables = [func[0] for func in all_functions
-                if not func[0].startswith('_')]
-    return callables
+def get_application_manager_class(project_type):
+    if hasattr(localtasks, 'get_application_manager_class'):
+        get_class = getattr(localtasks, 'get_application_manager_class')
+    else:
+        get_class = tasklib.get_application_manager_class
+    return get_class(project_type)
 
 
-def tasklib_list():
-    return get_public_callables(tasklib)
-
-
-def localtasks_list():
-    return get_public_callables(localtasks)
-
-
-def tasks_available():
-    tasks = list(set(tasklib_list() + localtasks_list()))
-    tasks.sort()
-    return tasks
+def get_application_manager(project_type, **kwargs):
+    return get_application_manager_class(project_type)(**kwargs)
 
 
 def print_help_text():
     print __doc__
-    print "The functions you can call are:"
+    try:
+        import project_settings
+    except ImportError:
+        print "Cannot import project_settings so cannot give list of tasks"
+        return
+    tasklib._setup_paths(project_settings, localtasks)
+    tasks = sorted(tasklib.get_application_manager_class(
+        project_settings.project_type).tasks)
+    print "The tasks you can use are:"
     print
-    tasks = tasks_available()
     for task in tasks:
         print task
     print
@@ -210,15 +205,16 @@ def main(argv):
             localtasks._setup_paths()
     # now set up the various paths required
     tasklib._setup_paths(project_settings, localtasks)
+    app_manager = get_application_manager(project_settings.project_type,
+                                          tasklib.env)
     # process arguments - just call the function with that name
     for arg in options['<tasks>']:
         fname, pos_args, kwargs = convert_task_bits(arg)
-        # work out which function to call - localtasks have priority
+        # work out which method to call - localtasks will have overridden
+        # the class if necessary
         f = None
-        if fname in localtasks_list():
-            f = getattr(localtasks, fname)
-        elif fname in tasklib_list():
-            f = getattr(tasklib, fname)
+        if fname in app_manager.tasks:
+            f = getattr(app_manager, fname)
         else:
             invalid_command(fname)
             return 2
