@@ -18,7 +18,6 @@ from tasklib.exceptions import InvalidPasswordError
 
 tasklib.env['verbose'] = False
 tasklib.env['quiet'] = True
-tasklib.env['noinput'] = True
 
 # cache this in a global variable so that we only need it once
 mysql_root_password = None
@@ -105,6 +104,7 @@ class MysqlMixin(object):
             host=None,
             root_password=None,
             grant_enabled=True,
+            noinput=True
         )
         super(MysqlMixin, self).setUp()
 

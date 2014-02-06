@@ -10,12 +10,13 @@ from .util import (check_call_wrapper, capture_command,
                    call_command, create_dir_if_not_exists,
                    CalledProcessError, ask_for_password, get_file_contents)
 
-# this is a global dictionary
-from .environment import env
-
 
 # the methods in this class are those used externally
 class DBManager(object):
+
+    def __init__(self, noinput=False):
+        # whether we can ask the user for input
+        self.noinput = noinput
 
     # the first four are required for tasks.py deploy
     def drop_db(self):
@@ -50,7 +51,8 @@ class SqliteManager(DBManager):
 
     ENGINE = 'Sqlite'
 
-    def __init__(self, name, root_dir):
+    def __init__(self, name, root_dir, **kwargs):
+        super(SqliteManager, self).__init__(**kwargs)
         if path.isabs(name):
             self.file_path = name
         else:
@@ -87,7 +89,8 @@ class MySQLManager(DBManager):
     root_pw_file_needs_sudo = True
 
     def __init__(self, name, user, password, port=None, host=None,
-                 root_password=None, grant_enabled=True):
+                 root_password=None, grant_enabled=True, **kwargs):
+        super(MySQLManager, self).__init__(**kwargs)
         self.name = name
         self.user = user
         self.password = password
@@ -117,7 +120,7 @@ class MySQLManager(DBManager):
 
             # still haven't got it, ask the user
             if root_pw is None:
-                if not env['noinput']:
+                if not self.noinput:
                     root_pw = ask_for_password("Please enter the MYSQL root password",
                                                test_fn=self.test_root_password)
                 else:
@@ -324,12 +327,12 @@ class MySQLManager(DBManager):
         cron_file.write(r'`/bin/date +\%d`.sql')
         cron_file.write('\n')
 
-    def setup_db_dumps(self, dump_dir):
+    def setup_db_dumps(self, dump_dir, project_name):
         """ set up mysql database dumps in root crontab """
         if not path.isabs(dump_dir):
             raise InvalidArgumentError(
                 'dump_dir must be an absolute path, you gave %s' % dump_dir)
-        cron_file = path.join('/etc', 'cron.daily', 'dump_' + env['project_name'])
+        cron_file = path.join('/etc', 'cron.daily', 'dump_' + project_name)
 
         create_dir_if_not_exists(dump_dir)
         dump_file_stub = path.join(dump_dir, 'daily-dump-')
@@ -338,7 +341,7 @@ class MySQLManager(DBManager):
         cron_set = True
         try:
             check_call_wrapper(
-                'sudo crontab -l | grep mysqldump | grep %s' % env['project_name'],
+                'sudo crontab -l | grep mysqldump | grep %s' % project_name,
                 shell=True)
         except CalledProcessError:
             cron_set = False

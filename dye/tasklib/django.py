@@ -96,7 +96,7 @@ class AppManager(object):
 
     def setup_db_dumps(self, dump_dir, database='default'):
         self.create_db_objects(database=database)
-        self.db.setup_db_dumps(dump_dir)
+        self.db.setup_db_dumps(dump_dir, env['project_name'])
 
     def quick_test(self, *extra_args):
         """Run the django tests with local_settings.py.dev_fasttests
@@ -246,7 +246,7 @@ class DjangoManager(PythonAppManager):
         import local_settings
 
         default_host = '127.0.0.1'
-        db_details = {}
+        db_details = {'noinput': env['noinput']}
         # there are two ways of having the settings:
         # either as DATABASE_NAME = 'x', DATABASE_USER ...
         # or as DATABASES = { 'default': { 'NAME': 'xyz' ... } }
