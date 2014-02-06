@@ -78,7 +78,7 @@ def print_help_text():
     except ImportError:
         print "Cannot import project_settings so cannot give list of tasks"
         return
-    tasklib._setup_paths(project_settings, localtasks)
+    tasklib.setup_paths(project_settings, localtasks)
     tasks = sorted(tasklib.get_application_manager_class(
         project_settings.project_type).tasks)
     print "The tasks you can use are:"
@@ -229,7 +229,7 @@ def main(argv):
         if (hasattr(localtasks, '_setup_paths')):
             localtasks._setup_paths()
     # now set up the various paths required
-    tasklib._setup_paths(project_settings, localtasks)
+    tasklib.setup_paths(project_settings, localtasks)
     app_manager = get_application_manager(project_settings.project_type,
                                           tasklib.env)
     # process arguments - just call the function with that name

@@ -6,9 +6,9 @@ import MySQLdb
 
 from .exceptions import (InvalidArgumentError, InvalidProjectError,
                          InvalidPasswordError)
-from .util import (_check_call_wrapper, _capture_command,
-                   _call_command, _create_dir_if_not_exists,
-                   CalledProcessError, _ask_for_password, _get_file_contents)
+from .util import (check_call_wrapper, capture_command,
+                   call_command, create_dir_if_not_exists,
+                   CalledProcessError, ask_for_password, get_file_contents)
 
 # this is a global dictionary
 from .environment import env
@@ -108,7 +108,7 @@ class MySQLManager(DBManager):
         # first try to read the root password from a file
         # otherwise ask the user
         if self.root_password is None:
-            root_pw = _get_file_contents(self.root_pw_file, sudo=self.root_pw_file_needs_sudo)
+            root_pw = get_file_contents(self.root_pw_file, sudo=self.root_pw_file_needs_sudo)
             # maybe it is wrong (on developer machine) - check it
             if root_pw is not None and not self.test_root_password(root_pw):
                 logging.debug(
@@ -118,8 +118,8 @@ class MySQLManager(DBManager):
             # still haven't got it, ask the user
             if root_pw is None:
                 if not env['noinput']:
-                    root_pw = _ask_for_password("Please enter the MYSQL root password",
-                                                test_fn=self.test_root_password)
+                    root_pw = ask_for_password("Please enter the MYSQL root password",
+                                               test_fn=self.test_root_password)
                 else:
                     raise InvalidPasswordError('Could not discover MySQL root password')
 
@@ -203,9 +203,9 @@ class MySQLManager(DBManager):
         cmdline_call += ['-e', sql_cmd]
 
         if capture_output:
-            return _capture_command(cmdline_call)
+            return capture_command(cmdline_call)
         else:
-            _check_call_wrapper(cmdline_call)
+            check_call_wrapper(cmdline_call)
 
     def exec_as_root(self, *sql_cmd_list):
         """ execute a SQL statement using MySQL as the root MySQL user"""
@@ -297,7 +297,7 @@ class MySQLManager(DBManager):
             logging.debug(
                 'Executing mysqldump command: %s\nSending stdout to %s' %
                 (' '.join(dump_cmd), dump_filename))
-            _call_command(dump_cmd, stdout=dump_file)
+            call_command(dump_cmd, stdout=dump_file)
         dump_file.close()
 
     def restore_db(self, dump_filename):
@@ -307,7 +307,7 @@ class MySQLManager(DBManager):
             logging.debug(
                 'Executing mysql restore command: %s\nSending stdin to %s' %
                 (' '.join(restore_cmd), dump_filename))
-            _call_command(restore_cmd, stdin=dump_file)
+            call_command(restore_cmd, stdin=dump_file)
 
     def create_dbdump_cron_file(self, cron_file, dump_file_stub):
         # write something like:
@@ -331,13 +331,13 @@ class MySQLManager(DBManager):
                 'dump_dir must be an absolute path, you gave %s' % dump_dir)
         cron_file = path.join('/etc', 'cron.daily', 'dump_' + env['project_name'])
 
-        _create_dir_if_not_exists(dump_dir)
+        create_dir_if_not_exists(dump_dir)
         dump_file_stub = path.join(dump_dir, 'daily-dump-')
 
         # has it been set up already
         cron_set = True
         try:
-            _check_call_wrapper(
+            check_call_wrapper(
                 'sudo crontab -l | grep mysqldump | grep %s' % env['project_name'],
                 shell=True)
         except CalledProcessError:

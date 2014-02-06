@@ -8,7 +8,7 @@ import subprocess
 from .exceptions import TasksError
 from .database import get_db_manager
 from .exceptions import InvalidProjectError, ShellCommandError
-from .util import _call_wrapper, _check_call_wrapper, _rm_all_pyc
+from .util import call_wrapper, check_call_wrapper, rm_all_pyc
 # global dictionary for state
 from .environment import env
 
@@ -70,7 +70,7 @@ class AppManager(object):
                 git_submodule_cmd = 'git submodule update --init'
             else:
                 git_submodule_cmd = 'git submodule --quiet update --init'
-            _check_call_wrapper(git_submodule_cmd, cwd=self.vcs_root_dir, shell=True)
+            check_call_wrapper(git_submodule_cmd, cwd=self.vcs_root_dir, shell=True)
 
     def clean_db(self):
         raise NotImplementedError()
@@ -354,6 +354,7 @@ class DjangoManager(PythonAppManager):
         """ link local_settings.py.environment as local_settings.py """
         logging.warning("### creating link to local_settings.py")
 
+        self.check_settings_imports_local_settings()
         source = path.join(self.django_settings_dir, 'local_settings.py.%s' %
                            environment)
         target = path.join(self.django_settings_dir, 'local_settings.py')
@@ -416,7 +417,7 @@ class DjangoManager(PythonAppManager):
             [pip_bin, 'install', 'coverage']
         ]
         for cmd in cmds:
-            _check_call_wrapper(cmd)
+            check_call_wrapper(cmd)
 
     def manage_py_jenkins(self):
         """ run the jenkins command """
@@ -458,7 +459,7 @@ class DjangoManager(PythonAppManager):
         """ make sure the local settings is correct and the database exists """
         env['verbose'] = True
         # don't want any stray pyc files causing trouble
-        _rm_all_pyc()
+        rm_all_pyc(self.vcs_root_dir)
         self.install_django_jenkins()
         self.create_private_settings()
         self.link_local_settings('jenkins')
@@ -476,10 +477,10 @@ class DjangoManager(PythonAppManager):
         patch_file = path.join(
             path.dirname(__file__), os.pardir, 'patch', 'south.patch')
         # check if patch already applied - patch will fail if it is
-        patch_applied = _call_wrapper(['grep', '-q', 'pydev', south_db_init])
+        patch_applied = call_wrapper(['grep', '-q', 'pydev', south_db_init])
         if patch_applied != 0:
             cmd = ['patch', '-N', '-p0', south_db_init, patch_file]
-            _check_call_wrapper(cmd)
+            check_call_wrapper(cmd)
 
 
 class WordpressManager(AppManager):

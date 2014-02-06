@@ -5,7 +5,7 @@ from os import path
 env = {}
 
 
-def _setup_paths(project_settings, localtasks):
+def setup_paths(project_settings, localtasks):
     """Set up the paths used by other tasks"""
     # first merge in variables from project_settings - but ignore __doc__ etc
     user_settings = [x for x in vars(project_settings).keys() if not x.startswith('__')]

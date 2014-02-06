@@ -3,7 +3,6 @@ from os import path
 from getpass import getpass
 import logging
 
-from .environment import env
 from .exceptions import InvalidPasswordError
 
 # make sure WindowsError is available
@@ -16,24 +15,24 @@ try:
     # For testing replacement routines for older python compatibility
     # raise ImportError()
     import subprocess
-    from subprocess import call as _call_command
+    from subprocess import call as call_command
 
-    def _capture_command(argv):
+    def capture_command(argv):
         return subprocess.Popen(argv, stdout=subprocess.PIPE).communicate()[0]
 
 except ImportError:
     # this section is for python older than 2.4 - basically for CentOS 4
     # when we have to use it
-    def _capture_command(argv):
+    def capture_command(argv):
         command = ' '.join(argv)
-        # logging.debug("(_capture_command) Executing: %s" % command)
+        # logging.debug("(capture_command) Executing: %s" % command)
         fd = os.popen(command)
         output = fd.read()
         fd.close()
         return output
 
     # older python - shell arg is ignored, but is legal
-    def _call_command(argv, stdin=None, stdout=None, shell=True):
+    def call_command(argv, stdin=None, stdout=None, shell=True):
         argv = [i.replace('"', '\"') for i in argv]
         argv = ['"%s"' % i for i in argv]
         command = " ".join(argv)
@@ -44,7 +43,7 @@ except ImportError:
         if stdout is not None:
             command += " > " + stdout.name
 
-        # logging.debug("(_call_command) Executing: %s\n" % command)
+        # logging.debug("(call_command) Executing: %s\n" % command)
 
         return os.system(command)
 
@@ -65,18 +64,18 @@ except ImportError:
                 (self.cmd, self.returncode)
 
 
-def _call_wrapper(argv, **kwargs):
+def call_wrapper(argv, **kwargs):
     if hasattr(argv, '__iter__'):
         command = ' '.join(argv)
     else:
         command = argv
     logging.debug("Executing command: %s" % command)
-    return _call_command(argv, **kwargs)
+    return call_command(argv, **kwargs)
 
 
-def _check_call_wrapper(argv, accepted_returncode_list=[0], **kwargs):
+def check_call_wrapper(argv, accepted_returncode_list=[0], **kwargs):
     try:
-        returncode = _call_wrapper(argv, **kwargs)
+        returncode = call_wrapper(argv, **kwargs)
 
         if returncode not in accepted_returncode_list:
             raise CalledProcessError(returncode, argv)
@@ -84,22 +83,22 @@ def _check_call_wrapper(argv, accepted_returncode_list=[0], **kwargs):
         raise CalledProcessError("Unknown", argv)
 
 
-def _create_dir_if_not_exists(dir_path, world_writeable=False, owner=None):
+def create_dir_if_not_exists(dir_path, world_writeable=False, owner=None):
     if not path.exists(dir_path):
-        _check_call_wrapper(['mkdir', '-p', dir_path])
+        check_call_wrapper(['mkdir', '-p', dir_path])
     if world_writeable:
-        _check_call_wrapper(['chmod', '-R', '777', dir_path])
+        check_call_wrapper(['chmod', '-R', '777', dir_path])
     if owner:
-        _check_call_wrapper(['chown', '-R', owner, dir_path])
+        check_call_wrapper(['chown', '-R', owner, dir_path])
 
 
-def _rm_all_pyc():
+def rm_all_pyc(vcs_root_dir):
     """Remove all pyc files, to be sure"""
-    _call_wrapper('find . -type f -name \*.pyc -exec rm {} \\;', shell=True,
-                  cwd=env['vcs_root_dir'])
+    call_wrapper('find . -type f -name \*.pyc -exec rm {} \\;',
+                 shell=True, cwd=vcs_root_dir)
 
 
-def _ask_for_password(prompt, test_fn=None, max_attempts=3):
+def ask_for_password(prompt, test_fn=None, max_attempts=3):
     """Get password from user.
 
     prompt is the text for the password prompt
@@ -120,18 +119,18 @@ def _ask_for_password(prompt, test_fn=None, max_attempts=3):
     return password
 
 
-def _get_file_contents(file_path, sudo=False):
+def get_file_contents(file_path, sudo=False):
     if sudo:
         try:
             # we use this rather than file exists so that the script doesn't
             # have to be run as root
-            file_exists = _call_wrapper(['sudo', 'test', '-f', file_path])
+            file_exists = call_wrapper(['sudo', 'test', '-f', file_path])
         except (WindowsError, CalledProcessError):
             return None
         if file_exists != 0:
             return None
         # note this requires sudoers to work with this - jenkins particularly
-        contents = _capture_command(["sudo", "cat", file_path])
+        contents = capture_command(["sudo", "cat", file_path])
     else:
         if not path.isfile(file_path):
             return None
