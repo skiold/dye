@@ -10,19 +10,23 @@ Usage:
     tasks.py [-d DEPLOYDIR] -h | --help
 
 Options:
-    -t, --task-description     Describe the tasks instead of running them.  This
-                               will show the task docstring and a basic
+    -t, --task-description     Describe the tasks instead of running them.
+                               This will show the task docstring and a basic
                                description of the arguments it takes.
-    -d, --deploydir DEPLOYDIR  Set the deploy dir (where to find project_settings.py
-                               and, optionally, localtasks.py)  Defaults to the
-                               directory that contains tasks.py
+    -d, --deploydir DEPLOYDIR  Set the deploy dir (where to find
+                               project_settings.py and, optionally,
+                               localtasks.py)  Defaults to the directory that
+                               contains tasks.py
     -n, --noinput              Never ask for input from the user (for scripts)
-    -q, --quiet                Print less output while executing (note: not none)
+    -q, --quiet                Print less output while executing (note: not
+                               none)
     -v, --verbose              Print extra output while executing
+    --log-to-file              Log all output to a file called deploy.log in
+                               the current directory.
     -h, --help                 Print this help text
 
-You can pass arguments to the tasks listed below, by adding the argument after a
-colon. So to call deploy and set the environment to staging you could do:
+You can pass arguments to the tasks listed below, by adding the argument after
+a colon. So to call deploy and set the environment to staging you could do:
 
 $ ./tasks.py deploy:staging
 
@@ -39,6 +43,7 @@ import os
 import sys
 import docopt
 import inspect
+import logging
 
 from dye import tasklib
 from dye.tasklib.exceptions import TasksError
@@ -122,6 +127,25 @@ def describe_task(args):
             print
 
 
+def setup_logging(quiet, verbose, log_to_file):
+    if verbose:
+        console_level = logging.DEBUG
+    elif quiet:
+        console_level = logging.WARNING
+    else:
+        console_level = logging.INFO
+
+    if not log_to_file:
+        logging.basicConfig(level=console_level)
+    else:
+        # log everything to file, and less to the console
+        logging.basicConfig(level=logging.DEBUG, filename='deploy.log',
+                            filemode='w')
+        console = logging.StreamHandler()
+        console.setLevel(console_level)
+        logging.getLogger('').addHandler(console)
+
+
 def convert_argument(value):
     if value.lower() == 'true':
         return True
@@ -187,17 +211,18 @@ def main(argv):
         describe_task(options['<tasks>'])
         return 0
     if options['--verbose'] and options['--quiet']:
-        print "Cannot set both verbose and quiet"
+        print >>sys.stderr, "Cannot set both verbose and quiet"
         return 2
-    tasklib.env['verbose'] = options['--verbose']
+    setup_logging(options['--quiet'], options['--verbose'], options['--log-to-file'])
     tasklib.env['quiet'] = options['--quiet']
+    tasklib.env['verbose'] = options['--verbose']
     tasklib.env['noinput'] = options['--noinput']
 
     try:
         import project_settings
     except ImportError:
-        print >>sys.stderr, \
-            "Could not import project_settings - check your --deploydir argument"
+        logging.critical(
+            "Could not import project_settings - check your --deploydir argument")
         return 1
 
     if localtasks is not None:

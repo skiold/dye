@@ -1,5 +1,6 @@
 import os
 from os import path
+import logging
 import sqlite3
 import MySQLdb
 
@@ -110,8 +111,8 @@ class MySQLManager(DBManager):
             root_pw = _get_file_contents(self.root_pw_file, sudo=self.root_pw_file_needs_sudo)
             # maybe it is wrong (on developer machine) - check it
             if root_pw is not None and not self.test_root_password(root_pw):
-                if env['verbose']:
-                    print "mysql root password in %s doesn't work" % self.root_pw_file
+                logging.debug(
+                    "mysql root password in %s doesn't work" % self.root_pw_file)
                 root_pw = None
 
             # still haven't got it, ask the user
@@ -293,9 +294,9 @@ class MySQLManager(DBManager):
             dump_cmd.append('--skip-extended-insert')
 
         with open(dump_filename, 'w') as dump_file:
-            if env['verbose']:
-                print 'Executing mysqldump command: %s\nSending stdout to %s' % \
-                    (' '.join(dump_cmd), dump_filename)
+            logging.debug(
+                'Executing mysqldump command: %s\nSending stdout to %s' %
+                (' '.join(dump_cmd), dump_filename))
             _call_command(dump_cmd, stdout=dump_file)
         dump_file.close()
 
@@ -303,9 +304,9 @@ class MySQLManager(DBManager):
         """Restore a database dump file by name"""
         restore_cmd = ['mysql'] + self.create_cmdline_args()
         with open(dump_filename, 'r') as dump_file:
-            if env['verbose']:
-                print 'Executing mysql restore command: %s\nSending stdin to %s' % \
-                    (' '.join(restore_cmd), dump_filename)
+            logging.debug(
+                'Executing mysql restore command: %s\nSending stdin to %s' %
+                (' '.join(restore_cmd), dump_filename))
             _call_command(restore_cmd, stdin=dump_file)
 
     def create_dbdump_cron_file(self, cron_file, dump_file_stub):

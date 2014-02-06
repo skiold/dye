@@ -1,6 +1,7 @@
 import os
 from os import path
 import sys
+import logging
 import random
 import subprocess
 
@@ -38,8 +39,7 @@ class AppManager(object):
             self.environment = environment
         else:
             self.environment = self.infer_environment()
-            if env['verbose']:
-                print "Inferred environment as %s" % self.environment
+            logging.debug("Inferred environment as %s" % self.environment)
 
         self.update_git_submodules()
         self.create_private_settings()
@@ -49,8 +49,8 @@ class AppManager(object):
         if hasattr(env['localtasks'], 'post_deploy'):
             env['localtasks'].post_deploy(self.environment)
 
-        print "\n*** Finished deploying %s for %s." % (
-                env['project_name'], self.environment)
+        logging.warning("*** Finished deploying %s for %s." %
+            (env['project_name'], self.environment))
 
     def infer_environment(self):
         raise NotImplementedError()
@@ -66,7 +66,7 @@ class AppManager(object):
         git_modules_file = path.join(self.vcs_root_dir, '.gitmodules')
         if path.exists(git_modules_file):
             if not env['quiet']:
-                print "### updating git submodules"
+                logging.warning("### updating git submodules")
                 git_submodule_cmd = 'git submodule update --init'
             else:
                 git_submodule_cmd = 'git submodule --quiet update --init'
@@ -146,8 +146,7 @@ class PythonAppManager(AppManager):
         if chosen_python is None:
             raise Exception("Failed to find a valid Python executable " +
                     "in any of these locations: %s" % paths_to_try)
-        if env['verbose']:
-            print "Using Python from %s" % chosen_python
+        logging.debug("Using Python from %s" % chosen_python)
         return chosen_python
 
 
@@ -200,19 +199,17 @@ class DjangoManager(PythonAppManager):
         if cwd is None:
             cwd = self.django_dir
 
-        if env['verbose']:
-            print 'Executing manage command: %s' % ' '.join(manage_cmd)
+        logging.debug('Executing manage command: %s' % ' '.join(manage_cmd))
         output_lines = []
         try:
             # TODO: make compatible with python 2.3
             popen = subprocess.Popen(manage_cmd, cwd=cwd, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
         except OSError, e:
-            print "Failed to execute command: %s: %s" % (manage_cmd, e)
+            logging.error("Failed to execute command: %s: %s" % (manage_cmd, e))
             raise e
         for line in iter(popen.stdout.readline, ""):
-            if env['verbose']:
-                print line,
+            logging.debug(line)
             output_lines.append(line)
         returncode = popen.wait()
         if returncode != 0:
@@ -320,8 +317,7 @@ class DjangoManager(PythonAppManager):
             force_use_migrations (bool): always True now
             database (string): The database value passed to _get_django_db_settings.
         """
-        if not env['quiet']:
-            print "### Creating and updating the databases"
+        logging.warning("### Creating and updating the databases")
 
         self.create_db_objects(database=database)
 
@@ -356,8 +352,7 @@ class DjangoManager(PythonAppManager):
 
     def link_local_settings(self, environment):
         """ link local_settings.py.environment as local_settings.py """
-        if not env['quiet']:
-            print "### creating link to local_settings.py"
+        logging.warning("### creating link to local_settings.py")
 
         source = path.join(self.django_settings_dir, 'local_settings.py.%s' %
                            environment)
@@ -393,8 +388,7 @@ class DjangoManager(PythonAppManager):
         private_settings_file = path.join(self.django_settings_dir,
                                           'private_settings.py')
         if not path.exists(private_settings_file):
-            if not env['quiet']:
-                print "### creating private_settings.py"
+            logging.warning("### creating private_settings.py")
             # don't use "with" for compatibility with python 2.3 on whov2hinari
             f = open(private_settings_file, 'w')
             try:
@@ -414,8 +408,7 @@ class DjangoManager(PythonAppManager):
 
     def install_django_jenkins(self):
         """ ensure that pip has installed the django-jenkins thing """
-        if not env['quiet']:
-            print "### Installing Jenkins packages"
+        logging.warning("### Installing Jenkins packages")
         pip_bin = path.join(env['ve_dir'], 'bin', 'pip')
         cmds = [
             [pip_bin, 'install', 'django-jenkins'],
@@ -433,8 +426,7 @@ class DjangoManager(PythonAppManager):
         if path.exists(coveragerc_filepath):
             args += ['--coverage-rcfile', coveragerc_filepath]
         args += env['django_apps']
-        if not env['quiet']:
-            print "### Running django-jenkins, with args; %s" % args
+        logging.warning("### Running django-jenkins, with args; %s" % args)
         self.manage_py(args, cwd=self.vcs_root_dir)
 
     def create_test_db(self, drop_after_create=True, database='default'):
@@ -451,8 +443,7 @@ class DjangoManager(PythonAppManager):
         ./tasks.py run_tests:myapp
         ./tasks.py run_tests:myapp.ModelTests,myapp.ViewTests.my_view_test
         """
-        if not env['quiet']:
-            print "### Running tests"
+        logging.warning("### Running tests")
 
         args = ['test', '--noinput', '-v0']
         if extra_args:

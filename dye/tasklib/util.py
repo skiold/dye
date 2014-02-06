@@ -1,6 +1,7 @@
 import os
 from os import path
 from getpass import getpass
+import logging
 
 from .environment import env
 from .exceptions import InvalidPasswordError
@@ -25,7 +26,7 @@ except ImportError:
     # when we have to use it
     def _capture_command(argv):
         command = ' '.join(argv)
-        # print "(_capture_command) Executing: %s" % command
+        # logging.debug("(_capture_command) Executing: %s" % command)
         fd = os.popen(command)
         output = fd.read()
         fd.close()
@@ -43,7 +44,7 @@ except ImportError:
         if stdout is not None:
             command += " > " + stdout.name
 
-        # sys.stderr.write("(_call_command) Executing: %s\n" % command)
+        # logging.debug("(_call_command) Executing: %s\n" % command)
 
         return os.system(command)
 
@@ -65,12 +66,11 @@ except ImportError:
 
 
 def _call_wrapper(argv, **kwargs):
-    if env['verbose']:
-        if hasattr(argv, '__iter__'):
-            command = ' '.join(argv)
-        else:
-            command = argv
-        print "Executing command: %s" % command
+    if hasattr(argv, '__iter__'):
+        command = ' '.join(argv)
+    else:
+        command = argv
+    logging.debug("Executing command: %s" % command)
     return _call_command(argv, **kwargs)
 
 
