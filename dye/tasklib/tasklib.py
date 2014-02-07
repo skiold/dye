@@ -18,13 +18,14 @@
 
 """
 
-from .django import DjangoManager
+from .managers import DjangoManager, WordpressManager
 from .exceptions import InvalidProjectError
 
 
 def get_application_manager_class(project_type):
     project_type_to_manager = {
         'django': DjangoManager,
+        'wordpress': WordpressManager,
     }
     if project_type in project_type_to_manager:
         return project_type_to_manager[project_type]
