@@ -512,3 +512,14 @@ class DjangoWordpressManager(object):
     def update_db(self):
         self.django.update_db()
         self.wordpress.update_db()
+
+
+def get_application_manager_class(project_type):
+    project_type_to_manager = {
+        'django': DjangoManager,
+        'wordpress': WordpressManager,
+    }
+    if project_type in project_type_to_manager:
+        return project_type_to_manager[project_type]
+    else:
+        raise InvalidProjectError('project_type %s not supported' % project_type)
