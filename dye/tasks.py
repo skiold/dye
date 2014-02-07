@@ -78,8 +78,7 @@ def print_help_text():
     except ImportError:
         print "Cannot import project_settings so cannot give list of tasks"
         return
-    tasklib.setup_paths(project_settings, localtasks)
-    tasks = sorted(tasklib.get_application_manager_class(
+    tasks = sorted(get_application_manager_class(
         project_settings.project_type).tasks)
     print "The tasks you can use are:"
     print
@@ -192,16 +191,16 @@ def main(argv):
 
     # need to set this before doing task-description or help
     if options['--deploydir']:
-        tasklib.env['deploy_dir'] = options['--deploydir']
+        deploy_dir = options['--deploydir']
     else:
-        tasklib.env['deploy_dir'] = os.path.dirname(__file__)
+        deploy_dir = os.path.dirname(__file__)
     # first we need to find and load the project settings
-    sys.path.append(tasklib.env['deploy_dir'])
+    sys.path.append(deploy_dir)
     # now see if we can find localtasks
     # We deliberately don't surround the import by try/except. If there
     # is an error in localfab, you want it to blow up immediately, rather
     # than silently fail.
-    if os.path.isfile(os.path.join(tasklib.env['deploy_dir'], 'localtasks.py')):
+    if os.path.isfile(os.path.join(deploy_dir, 'localtasks.py')):
         import localtasks
 
     if options['--help']:
@@ -210,13 +209,13 @@ def main(argv):
     if options['--task-description']:
         describe_task(options['<tasks>'])
         return 0
-    if options['--verbose'] and options['--quiet']:
+    quiet = options['--quiet']
+    verbose = options['--verbose']
+    noinput = options['--noinput']
+    if verbose and quiet:
         print >>sys.stderr, "Cannot set both verbose and quiet"
         return 2
-    setup_logging(options['--quiet'], options['--verbose'], options['--log-to-file'])
-    tasklib.env['quiet'] = options['--quiet']
-    tasklib.env['verbose'] = options['--verbose']
-    tasklib.env['noinput'] = options['--noinput']
+    setup_logging(quiet, verbose, options['--log-to-file'])
 
     try:
         import project_settings
@@ -225,13 +224,12 @@ def main(argv):
             "Could not import project_settings - check your --deploydir argument")
         return 1
 
-    if localtasks is not None:
-        if (hasattr(localtasks, '_setup_paths')):
-            localtasks._setup_paths()
     # now set up the various paths required
-    tasklib.setup_paths(project_settings, localtasks)
-    app_manager = get_application_manager(project_settings.project_type,
-                                          tasklib.env)
+    app_manager = get_application_manager(
+        project_settings.project_type,
+        project_settings, localtasks,
+        quiet, verbose, noinput
+    )
     # process arguments - just call the function with that name
     for arg in options['<tasks>']:
         fname, pos_args, kwargs = convert_task_bits(arg)

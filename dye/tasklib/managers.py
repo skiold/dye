@@ -9,8 +9,6 @@ from .exceptions import TasksError
 from .database import get_db_manager
 from .exceptions import InvalidProjectError, ShellCommandError
 from .util import call_wrapper, check_call_wrapper, rm_all_pyc
-# global dictionary for state
-from .environment import env
 
 
 class AppManager(object):
@@ -24,9 +22,24 @@ class AppManager(object):
         'setup_db_dumps', 'create_dbdump_cron_file',
     )
 
-    def __init__(self, env, **kwargs):
+    def __init__(self, project_settings, localtasks=None,
+                 quiet=False, verbose=False, noinput=False, **kwargs):
         self.environment = None
-        self.vcs_root_dir = env['vcs_root_dir']
+        self.quiet = quiet
+        self.verbose = verbose
+        self.noinput = noinput
+        self.localtasks_module = localtasks
+
+        # first merge in variables from project_settings - but ignore __doc__ etc
+        for setting in vars(project_settings).keys():
+            if not setting.startswith('__'):
+                setattr(self, setting, vars(project_settings)[setting])
+
+        # what is the root of the project - one up from this directory
+        if hasattr(self, 'local_vcs_root'):
+            self.vcs_root_dir = self.local_vcs_root
+        else:
+            self.vcs_root_dir = path.abspath(path.join(self.deploy_dir, os.pardir))
 
     # TODO: put code for other apps in here
     # create db objects
@@ -46,11 +59,11 @@ class AppManager(object):
         self.link_local_settings(self.environment)
         self.update_db()
 
-        if hasattr(env['localtasks'], 'post_deploy'):
-            env['localtasks'].post_deploy(self.environment)
+        if hasattr(self.localtasks_module, 'post_deploy'):
+            self.localtasks_module.post_deploy(self.environment)
 
         logging.warning("*** Finished deploying %s for %s." %
-            (env['project_name'], self.environment))
+                        (self.project_name, self.environment))
 
     def infer_environment(self):
         raise NotImplementedError()
@@ -65,7 +78,7 @@ class AppManager(object):
         """If this is a git project then check for submodules and update"""
         git_modules_file = path.join(self.vcs_root_dir, '.gitmodules')
         if path.exists(git_modules_file):
-            if not env['quiet']:
+            if not self.quiet:
                 logging.warning("### updating git submodules")
                 git_submodule_cmd = 'git submodule update --init'
             else:
@@ -96,7 +109,7 @@ class AppManager(object):
 
     def setup_db_dumps(self, dump_dir, database='default'):
         self.create_db_objects(database=database)
-        self.db.setup_db_dumps(dump_dir, env['project_name'])
+        self.db.setup_db_dumps(dump_dir, self.project_name)
 
     def quick_test(self, *extra_args):
         """Run the django tests with local_settings.py.dev_fasttests
@@ -130,8 +143,8 @@ class AppManager(object):
 
 class PythonAppManager(AppManager):
 
-    def __init__(self, env, **kwargs):
-        super(PythonAppManager, self).__init__(env, **kwargs)
+    def __init__(self, **kwargs):
+        super(PythonAppManager, self).__init__(**kwargs)
         self.python_bin = self.get_python_bin()
 
     def get_python_bin(self):
@@ -159,33 +172,33 @@ class DjangoManager(PythonAppManager):
         'patch_south',
     )
 
-    def __init__(self, env, **kwargs):
-        super(DjangoManager, self).__init__(env, **kwargs)
+    def __init__(self, **kwargs):
+        super(DjangoManager, self).__init__(**kwargs)
         # the django settings will be in the django_dir for old school projects
         # otherwise it should be defined in the project_settings
-        env.setdefault('relative_django_settings_dir', env['relative_django_dir'])
-        env.setdefault('relative_ve_dir', path.join(env['relative_django_dir'], '.ve'))
+        if not hasattr(self, 'relative_django_settings_dir'):
+            self.relative_django_settings_dir = self.relative_django_dir
+        if not hasattr(self, 'relative_ve_dir'):
+            self.relative_ve_dir = path.join(self.relative_django_dir, '.ve')
 
         # now create the absolute paths of everything else
-        env.setdefault('django_dir',
-                       path.join(self.vcs_root_dir, env['relative_django_dir']))
-        env.setdefault('django_settings_dir',
-                       path.join(self.vcs_root_dir, env['relative_django_settings_dir']))
-        env.setdefault('ve_dir',
-                       path.join(self.vcs_root_dir, env['relative_ve_dir']))
-        env.setdefault('manage_py', path.join(env['django_dir'], 'manage.py'))
-
-        self.django_dir = env['django_dir']
-        self.django_settings_dir = env['django_settings_dir']
-        self.manage_py = env['manage_py']
-        self.manage_py_settings = env.get('manage_py_settings', None)
+        if not hasattr(self, 'django_dir'):
+            self.django_dir = path.join(self.vcs_root_dir, self.relative_django_dir)
+        if not hasattr(self, 'django_settings_dir'):
+            self.django_settings_dir = path.join(self.vcs_root_dir, self.relative_django_settings_dir)
+        if not hasattr(self, 've_dir'):
+            self.ve_dir = path.join(self.vcs_root_dir, self.relative_ve_dir)
+        if not hasattr(self, 'manage_py'):
+            self.manage_py = path.join(self.django_dir, 'manage.py')
+        if not hasattr(self, 'manage_py_settings'):
+            self.manage_py_settings = None
 
     def manage_py(self, args, cwd=None):
         # for manage.py, always use the system python
         # otherwise the update_ve will fail badly, as it deletes
         # the virtualenv part way through the process ...
         manage_cmd = [self.python_bin, self.manage_py]
-        if env['quiet']:
+        if self.quiet:
             manage_cmd.append('--verbosity=0')
         if isinstance(args, str):
             manage_cmd.append(args)
@@ -240,13 +253,13 @@ class DjangoManager(PythonAppManager):
             self.infer_environment()
 
         # import local_settings from the django dir. Here we are adding the django
-        # project directory to the path. Note that env['django_dir'] may be more than
+        # project directory to the path. Note that self.django_dir may be more than
         # one directory (eg. 'django/project') which is why we use django_module
         sys.path.append(self.django_settings_dir)
         import local_settings
 
         default_host = '127.0.0.1'
-        db_details = {'noinput': env['noinput']}
+        db_details = {'noinput': self.noinput}
         # there are two ways of having the settings:
         # either as DATABASE_NAME = 'x', DATABASE_USER ...
         # or as DATABASES = { 'default': { 'NAME': 'xyz' ... } }
@@ -256,7 +269,7 @@ class DjangoManager(PythonAppManager):
             db_details['name'] = db['NAME']
             test_name = getattr(local_settings, 'TEST_NAME', None)
             if db_details['engine'].endswith('sqlite3'):
-                db_details['root_dir'] = env['django_dir']
+                db_details['root_dir'] = self.django_dir
             else:
                 db_details['user'] = db['USER']
                 db_details['password'] = db['PASSWORD']
@@ -269,7 +282,7 @@ class DjangoManager(PythonAppManager):
                 db_details['name'] = local_settings.DATABASE_NAME
                 test_name = getattr(local_settings, 'DATABASE_TEST_NAME', None)
                 if db_details['engine'].endswith('sqlite3'):
-                    db_details['root_dir'] = env['django_dir']
+                    db_details['root_dir'] = self.django_dir
                 else:
                     db_details['user'] = local_settings.DATABASE_USER
                     db_details['password'] = local_settings.DATABASE_PASSWORD
@@ -410,7 +423,7 @@ class DjangoManager(PythonAppManager):
     def install_django_jenkins(self):
         """ ensure that pip has installed the django-jenkins thing """
         logging.warning("### Installing Jenkins packages")
-        pip_bin = path.join(env['ve_dir'], 'bin', 'pip')
+        pip_bin = path.join(self.ve_dir, 'bin', 'pip')
         cmds = [
             [pip_bin, 'install', 'django-jenkins'],
             [pip_bin, 'install', 'pylint'],
@@ -426,13 +439,13 @@ class DjangoManager(PythonAppManager):
         coveragerc_filepath = path.join(self.vcs_root_dir, 'jenkins', 'coverage.rc')
         if path.exists(coveragerc_filepath):
             args += ['--coverage-rcfile', coveragerc_filepath]
-        args += env['django_apps']
+        args += self.django_apps
         logging.warning("### Running django-jenkins, with args; %s" % args)
         self.manage_py(args, cwd=self.vcs_root_dir)
 
     def create_test_db(self, drop_after_create=True, database='default'):
         self.create_db_objects(database=database)
-        env['test_db'].create_db_if_not_exists(drop_after_create=drop_after_create)
+        self.test_db.create_db_if_not_exists(drop_after_create=drop_after_create)
 
     def run_tests(self, *extra_args):
         """Run the django tests.
@@ -451,13 +464,14 @@ class DjangoManager(PythonAppManager):
             args += extra_args
         else:
             # default to running all tests
-            args += env['django_apps']
+            args += self.django_apps
 
         self.manage_py(args)
 
     def run_jenkins(self):
         """ make sure the local settings is correct and the database exists """
-        env['verbose'] = True
+        self.verbose = True
+        # TODO: also set logging levels
         # don't want any stray pyc files causing trouble
         rm_all_pyc(self.vcs_root_dir)
         self.install_django_jenkins()
@@ -472,7 +486,7 @@ class DjangoManager(PythonAppManager):
         python = 'python2.6'
         if '2.7' in self.python_bin:
             python = 'python2.7'
-        south_db_init = path.join(env['ve_dir'],
+        south_db_init = path.join(self.ve_dir,
                     'lib/%s/site-packages/south/db/__init__.py' % python)
         patch_file = path.join(
             path.dirname(__file__), os.pardir, 'patch', 'south.patch')
@@ -515,6 +529,9 @@ class DjangoWordpressManager(object):
 
 
 def get_application_manager_class(project_type):
+    """ This is the only function exported by tasklib - then we
+    just instantiate the returned class and carry on from there.
+    """
     project_type_to_manager = {
         'django': DjangoManager,
         'wordpress': WordpressManager,

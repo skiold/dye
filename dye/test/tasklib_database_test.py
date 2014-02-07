@@ -11,13 +11,9 @@ import MySQLdb
 
 dye_dir = path.join(path.dirname(__file__), os.pardir)
 sys.path.append(dye_dir)
-import tasklib
 
 from tasklib import database
 from tasklib.exceptions import InvalidPasswordError
-
-tasklib.env['verbose'] = False
-tasklib.env['quiet'] = True
 
 # cache this in a global variable so that we only need it once
 mysql_root_password = None
@@ -32,6 +28,7 @@ class TestSqliteManager(unittest.TestCase):
             engine='sqlite',
             name=self.TEST_DB,
             root_dir='.',
+            noinput=True
         )
         super(TestSqliteManager, self).setUp()
 
@@ -82,6 +79,7 @@ class TestSqlite3Manager(unittest.TestCase):
             engine='sqlite3',
             name=self.TEST_DB,
             root_dir='.',
+            noinput=True,
         )
 
 
@@ -104,7 +102,7 @@ class MysqlMixin(object):
             host=None,
             root_password=None,
             grant_enabled=True,
-            noinput=True
+            noinput=True,
         )
         super(MysqlMixin, self).setUp()
 

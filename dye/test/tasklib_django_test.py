@@ -7,16 +7,12 @@ import unittest
 dye_dir = path.join(path.dirname(__file__), os.pardir)
 sys.path.append(dye_dir)
 import tasklib
-from tasklib.django import DjangoManager
+from tasklib.managers import DjangoManager
 from tasklib.exceptions import InvalidProjectError
 
 example_dir = path.join(dye_dir, os.pardir, '{{cookiecutter.project_name}}', 'deploy')
 sys.path.append(example_dir)
 import project_settings
-
-tasklib.env['verbose'] = False
-tasklib.env['quiet'] = True
-tasklib.env['noinput'] = True
 
 
 class TestLinkLocalSettings(unittest.TestCase):
@@ -37,26 +33,24 @@ class TestLinkLocalSettings(unittest.TestCase):
         project_settings.relative_ve_dir = path.join(
             project_settings.relative_django_dir, '.ve')
 
-        tasklib.setup_paths(project_settings, None)
-
-        self.manager = DjangoManager(tasklib.env)
-        self.manager.python_bin = path.join(tasklib.env['ve_dir'], 'bin', 'python')
-        self.manager.manage_py = path.join(tasklib.env['django_dir'], 'manage.py')
+        self.manager = DjangoManager(project_settings=project_settings, quiet=True, noinput=True)
+        self.manager.python_bin = path.join(self.manager.ve_dir, 'bin', 'python')
+        self.manager.manage_py = path.join(self.manager.django_dir, 'manage.py')
 
         # set up directories
-        if not path.exists(tasklib.env['django_dir']):
-            os.makedirs(tasklib.env['django_dir'])
-            os.makedirs(tasklib.env['django_settings_dir'])
+        if not path.exists(self.manager.django_dir):
+            os.makedirs(self.manager.django_dir)
+            os.makedirs(self.manager.django_settings_dir)
 
     def tearDown(self):
         shutil.rmtree(self.testdir)
 
     def create_empty_settings_py(self):
-        settings_path = path.join(tasklib.env['django_settings_dir'], 'settings.py')
+        settings_path = path.join(self.manager.django_settings_dir, 'settings.py')
         open(settings_path, 'a').close()
 
     def create_settings_py(self):
-        settings_path = path.join(tasklib.env['django_settings_dir'], 'settings.py')
+        settings_path = path.join(self.manager.django_settings_dir, 'settings.py')
         with open(settings_path, 'w') as f:
             f.write('import local_settings')
 
@@ -70,7 +64,7 @@ class TestLinkLocalSettings(unittest.TestCase):
     def test_link_local_settings_raises_error_if_settings_py_not_present(self):
         # We don't create settings.py, just call link_local_settings()
         # and see if it dies with the correct error
-        local_settings_path = path.join(tasklib.env['django_settings_dir'], 'local_settings.py')
+        local_settings_path = path.join(self.manager.django_settings_dir, 'local_settings.py')
         self.create_local_settings_py_dev(local_settings_path)
         with self.assertRaises(InvalidProjectError):
             self.manager.link_local_settings('dev')
@@ -78,7 +72,7 @@ class TestLinkLocalSettings(unittest.TestCase):
     def test_link_local_settings_raises_error_if_settings_py_does_not_import_local_settings(self):
         # We don't create settings.py, just call link_local_settings()
         # and see if it dies with the correct error
-        local_settings_path = path.join(tasklib.env['django_settings_dir'], 'local_settings.py')
+        local_settings_path = path.join(self.manager.django_settings_dir, 'local_settings.py')
         self.create_local_settings_py_dev(local_settings_path)
         self.create_empty_settings_py()
         with self.assertRaises(InvalidProjectError):
@@ -93,7 +87,7 @@ class TestLinkLocalSettings(unittest.TestCase):
 
     def test_link_local_settings_creates_correct_link(self):
         self.create_settings_py()
-        local_settings_path = path.join(tasklib.env['django_settings_dir'], 'local_settings.py')
+        local_settings_path = path.join(self.manager.django_settings_dir, 'local_settings.py')
         self.create_local_settings_py_dev(local_settings_path)
 
         self.manager.link_local_settings('dev')
@@ -105,7 +99,7 @@ class TestLinkLocalSettings(unittest.TestCase):
 
     def test_link_local_settings_replaces_old_local_settings(self):
         self.create_settings_py()
-        local_settings_path = path.join(tasklib.env['django_settings_dir'], 'local_settings.py')
+        local_settings_path = path.join(self.manager.django_settings_dir, 'local_settings.py')
         self.create_local_settings_py_dev(local_settings_path)
         open(local_settings_path, 'a').close()
         self.assertFalse(path.islink(local_settings_path))
@@ -119,7 +113,7 @@ class TestLinkLocalSettings(unittest.TestCase):
 
     def test_link_local_settings_removes_local_settings_pyc(self):
         self.create_settings_py()
-        local_settings_path = path.join(tasklib.env['django_settings_dir'], 'local_settings.py')
+        local_settings_path = path.join(self.manager.django_settings_dir, 'local_settings.py')
         local_settings_pyc_path = local_settings_path + 'c'
         self.create_local_settings_py_dev(local_settings_path)
         open(local_settings_pyc_path, 'a').close()
