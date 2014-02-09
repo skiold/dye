@@ -6,7 +6,6 @@ import unittest
 
 dye_dir = path.join(path.dirname(__file__), os.pardir)
 sys.path.append(dye_dir)
-import tasklib
 from tasklib.managers import DjangoManager
 from tasklib.exceptions import InvalidProjectError
 
@@ -15,9 +14,9 @@ sys.path.append(example_dir)
 import project_settings
 
 
-class TestLinkLocalSettings(unittest.TestCase):
-    def setUp(self):
-        self.testdir = path.join(path.dirname(__file__), 'testdir')
+class ManagerTestMixin(object):
+
+    def setup_project_settings(self, testdir):
         project_settings.project_name = 'testproj'
         project_settings.django_apps = ['testapp']
         project_settings.project_type = 'django'
@@ -25,7 +24,7 @@ class TestLinkLocalSettings(unittest.TestCase):
         project_settings.relative_django_dir = path.join(
             "django", project_settings.project_name)
         project_settings.local_deploy_dir = path.dirname(__file__)
-        project_settings.local_vcs_root = self.testdir
+        project_settings.local_vcs_root = testdir
         project_settings.django_dir = path.join(project_settings.local_vcs_root,
             project_settings.relative_django_dir)
         project_settings.relative_django_settings_dir = path.join(
@@ -33,17 +32,29 @@ class TestLinkLocalSettings(unittest.TestCase):
         project_settings.relative_ve_dir = path.join(
             project_settings.relative_django_dir, '.ve')
 
+    def create_manager(self):
         self.manager = DjangoManager(project_settings=project_settings, quiet=True, noinput=True)
-        self.manager.python_bin = path.join(self.manager.ve_dir, 'bin', 'python')
-        self.manager.manage_py = path.join(self.manager.django_dir, 'manage.py')
+        #self.manager.python_bin = path.join(self.manager.ve_dir, 'bin', 'python')
 
-        # set up directories
+    def create_django_dirs(self):
         if not path.exists(self.manager.django_dir):
             os.makedirs(self.manager.django_dir)
             os.makedirs(self.manager.django_settings_dir)
 
-    def tearDown(self):
+    def remove_django_dirs(self):
         shutil.rmtree(self.testdir)
+
+
+class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
+
+    def setUp(self):
+        self.testdir = path.join(path.dirname(__file__), 'testdir')
+        self.setup_project_settings(self.testdir)
+        self.create_manager()
+        self.create_django_dirs()
+
+    def tearDown(self):
+        self.remove_django_dirs()
 
     def create_empty_settings_py(self):
         settings_path = path.join(self.manager.django_settings_dir, 'settings.py')
