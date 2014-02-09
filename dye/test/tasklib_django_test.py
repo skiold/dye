@@ -6,7 +6,7 @@ import unittest
 
 dye_dir = path.join(path.dirname(__file__), os.pardir)
 sys.path.append(dye_dir)
-from tasklib.managers import AppManager, DjangoManager
+from tasklib.managers import AppManager, PythonAppManager, DjangoManager
 from tasklib.exceptions import InvalidProjectError
 
 example_dir = path.join(dye_dir, os.pardir, '{{cookiecutter.project_name}}', 'deploy')
@@ -71,6 +71,46 @@ class TestAppManagerInit(ManagerTestMixin, unittest.TestCase):
         deploy_parent_dir = path.abspath(path.join(project_settings.local_deploy_dir, '..'))
         self.manager = AppManager(project_settings=project_settings, quiet=True, noinput=True)
         self.assertEqual(deploy_parent_dir, self.manager.vcs_root_dir)
+
+
+class TestPythonAppManager(ManagerTestMixin, unittest.TestCase):
+
+    def setUp(self):
+        self.testdir = path.join(path.dirname(__file__), 'testdir')
+        self.setup_project_settings(self.testdir)
+        self.manager = PythonAppManager(project_settings=project_settings, quiet=True, noinput=True)
+
+    # TODO: how to check get_python_bin() checking?  Mock the path.exist() calls?
+
+
+class TestDjangoAppManagerInit(ManagerTestMixin, unittest.TestCase):
+
+    required_vars = [
+        'relative_django_settings_dir', 'relative_ve_dir', 'django_dir',
+        'django_settings_dir', 've_dir', 'manage_py', 'manage_py_settings',
+    ]
+
+    def setUp(self):
+        self.testdir = path.join(path.dirname(__file__), 'testdir')
+        self.setup_project_settings(self.testdir)
+        for var in self.required_vars:
+            if hasattr(project_settings, var):
+                delattr(project_settings, var)
+
+    def test_required_variables_are_set_when_not_present_in_project_settings(self):
+        self.manager = DjangoManager(project_settings=project_settings, quiet=True, noinput=True)
+        for var in self.required_vars:
+            self.assertTrue(hasattr(self.manager, var))
+
+    def test_required_variables_can_be_overridden_by_project_settings(self):
+        for i, var in enumerate(self.required_vars):
+            value = 'silly value %d' % i
+            setattr(project_settings, var, value)
+            try:
+                self.manager = DjangoManager(project_settings=project_settings, quiet=True, noinput=True)
+                self.assertEqual(value, getattr(self.manager, var))
+            finally:
+                delattr(project_settings, var)
 
 
 class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
