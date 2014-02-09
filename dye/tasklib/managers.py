@@ -239,25 +239,14 @@ class DjangoManager(PythonAppManager):
         else:
             raise TasksError('no environment set, or pre-existing')
 
-    def create_db_objects(self, database='default'):
-        """
-            Args:
+    def get_db_details_from_local_settings(self, local_settings, database='default'):
+        """ Args:
+                local_settings (module): the module with the database settings
+
                 database (string): The database key to use in the 'DATABASES'
                     configuration. Override from the default to use a different
                     database.
         """
-        if self.db is not None:
-            return
-        # work out what the environment is if necessary
-        if self.environment is None:
-            self.infer_environment()
-
-        # import local_settings from the django dir. Here we are adding the django
-        # project directory to the path. Note that self.django_dir may be more than
-        # one directory (eg. 'django/project') which is why we use django_module
-        sys.path.append(self.django_settings_dir)
-        import local_settings
-
         default_host = '127.0.0.1'
         db_details = {'noinput': self.noinput}
         # there are two ways of having the settings:
@@ -295,8 +284,31 @@ class DjangoManager(PythonAppManager):
         db_details['engine'] = db_details['engine'].split('.')[-1]
         if self.environment == 'dev_fasttests':
             db_details['grant_enabled'] = False
+        return db_details, test_name
+
+    def create_db_objects(self, database='default'):
+        """ Args:
+                database (string): The database key to use in the 'DATABASES'
+                    configuration. Override from the default to use a different
+                    database.
+        """
+        if self.db is not None:
+            return
+        # work out what the environment is if necessary
+        if self.environment is None:
+            self.infer_environment()
+
+        # import local_settings from the django dir. Here we are adding the
+        # django project directory to the path. Note that self.django_dir may
+        # be more than one directory (eg. 'django/project') which is why we
+        # use django_module
+        sys.path.append(self.django_settings_dir)
+        import local_settings
+        db_details, test_name = self.get_db_details_from_local_settings(local_settings, database)
+
         # and create the objects that hold the db details
         self.db = get_db_manager(**db_details)
+
         # and the test db object
         if test_name is None:
             db_details['name'] = 'test_' + db_details['name']
