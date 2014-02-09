@@ -39,7 +39,7 @@ class AppManager(object):
         if hasattr(self, 'local_vcs_root'):
             self.vcs_root_dir = self.local_vcs_root
         else:
-            self.vcs_root_dir = path.abspath(path.join(self.deploy_dir, os.pardir))
+            self.vcs_root_dir = path.abspath(path.join(self.local_deploy_dir, os.pardir))
 
     # TODO: put code for other apps in here
     # create db objects
@@ -78,8 +78,8 @@ class AppManager(object):
         """If this is a git project then check for submodules and update"""
         git_modules_file = path.join(self.vcs_root_dir, '.gitmodules')
         if path.exists(git_modules_file):
+            logging.warning("### updating git submodules")
             if not self.quiet:
-                logging.warning("### updating git submodules")
                 git_submodule_cmd = 'git submodule update --init'
             else:
                 git_submodule_cmd = 'git submodule --quiet update --init'

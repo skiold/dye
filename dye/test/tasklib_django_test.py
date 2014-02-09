@@ -6,7 +6,7 @@ import unittest
 
 dye_dir = path.join(path.dirname(__file__), os.pardir)
 sys.path.append(dye_dir)
-from tasklib.managers import DjangoManager
+from tasklib.managers import AppManager, DjangoManager
 from tasklib.exceptions import InvalidProjectError
 
 example_dir = path.join(dye_dir, os.pardir, '{{cookiecutter.project_name}}', 'deploy')
@@ -16,7 +16,7 @@ import project_settings
 
 class ManagerTestMixin(object):
 
-    def setup_project_settings(self, testdir):
+    def setup_project_settings(self, testdir, set_local_vcs_root=True):
         project_settings.project_name = 'testproj'
         project_settings.django_apps = ['testapp']
         project_settings.project_type = 'django'
@@ -24,7 +24,10 @@ class ManagerTestMixin(object):
         project_settings.relative_django_dir = path.join(
             "django", project_settings.project_name)
         project_settings.local_deploy_dir = path.dirname(__file__)
-        project_settings.local_vcs_root = testdir
+        if set_local_vcs_root:
+            project_settings.local_vcs_root = testdir
+        else:
+            project_settings.local_vcs_root = None
         project_settings.django_dir = path.join(project_settings.local_vcs_root,
             project_settings.relative_django_dir)
         project_settings.relative_django_settings_dir = path.join(
@@ -34,7 +37,6 @@ class ManagerTestMixin(object):
 
     def create_manager(self):
         self.manager = DjangoManager(project_settings=project_settings, quiet=True, noinput=True)
-        #self.manager.python_bin = path.join(self.manager.ve_dir, 'bin', 'python')
 
     def create_django_dirs(self):
         if not path.exists(self.manager.django_dir):
@@ -43,6 +45,32 @@ class ManagerTestMixin(object):
 
     def remove_django_dirs(self):
         shutil.rmtree(self.testdir)
+
+
+class TestAppManagerInit(ManagerTestMixin, unittest.TestCase):
+
+    def setUp(self):
+        self.testdir = path.join(path.dirname(__file__), 'testdir')
+        self.setup_project_settings(self.testdir)
+        self.manager = AppManager(project_settings=project_settings, quiet=True, noinput=True)
+
+    def test_project_settings_attributes_become_variables_on_manager(self):
+        self.assertEqual(project_settings.project_name, self.manager.project_name)
+        self.assertEqual(project_settings.project_type, self.manager.project_type)
+        self.assertEqual(project_settings.use_virtualenv, self.manager.use_virtualenv)
+
+    def test_private_project_settings_attributes_do_not_become_variables_on_manager(self):
+        self.assertFalse(hasattr(self.manager, '__name__'))
+        self.assertFalse(hasattr(self.manager, '__file__'))
+
+    def test_vcs_root_dir_is_set_if_local_vcs_root_present_in_project_settings(self):
+        self.assertEqual(project_settings.local_vcs_root, self.manager.vcs_root_dir)
+
+    def test_vcs_root_dir_uses_parent_of_deploy_dir_if_local_vcs_root_not_present_in_project_settings(self):
+        del project_settings.local_vcs_root
+        deploy_parent_dir = path.abspath(path.join(project_settings.local_deploy_dir, '..'))
+        self.manager = AppManager(project_settings=project_settings, quiet=True, noinput=True)
+        self.assertEqual(deploy_parent_dir, self.manager.vcs_root_dir)
 
 
 class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
