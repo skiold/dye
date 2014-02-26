@@ -2,7 +2,7 @@
 
 # Build paths inside the project like this: path.join(BASE_DIR, ...)
 from os import path
-BASE_DIR = path.dirname(path.dirname(__file__))
+BASE_DIR = path.abspath(path.dirname(__file__))
 
 
 ########## DEFAULT DEBUG SETTINGS - OVERRIDE IN local_settings
@@ -117,9 +117,7 @@ DJANGO_APPS = (
 )
 THIRD_PARTY_APPS = (
     'south',  # Database migration helpers:
-    #{% if django_type == "normal" or django_type == "cms" %}
     'crispy_forms',  # Form layouts
-    #{% endif %}
 )
 
 # Apps specific for this project go here.
