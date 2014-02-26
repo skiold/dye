@@ -436,13 +436,13 @@ class DjangoManager(PythonAppManager):
         """ ensure that pip has installed the django-jenkins thing """
         logging.warning("### Installing Jenkins packages")
         pip_bin = path.join(self.ve_dir, 'bin', 'pip')
-        cmds = [
-            [pip_bin, 'install', 'django-jenkins'],
-            [pip_bin, 'install', 'pylint'],
-            [pip_bin, 'install', 'coverage']
-        ]
-        for cmd in cmds:
-            check_call_wrapper(cmd)
+        if hasattr(self, 'django_jenkins_version'):
+            packages = ['django-jenkins==%s' % self.django_jenkins_version]
+        else:
+            packages = ['django-jenkins']
+        packages += ['pylint', 'coverage']
+        for package in packages:
+            check_call_wrapper([pip_bin, 'install', package])
 
     def manage_py_jenkins(self):
         """ run the jenkins command """
