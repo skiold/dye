@@ -121,7 +121,7 @@ class MySQLManager(DBManager):
             # still haven't got it, ask the user
             if root_pw is None:
                 if not self.noinput:
-                    root_pw = ask_for_password("Please enter the MYSQL root password",
+                    root_pw = ask_for_password("Please enter the MySQL root password",
                                                test_fn=self.test_root_password)
                 else:
                     raise InvalidPasswordError('Could not discover MySQL root password')
