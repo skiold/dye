@@ -227,9 +227,7 @@ class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
 
     # find migrations
 
-    # create rollback version
-
-    # create dir if not exists
+    # create rollback version - only in fabric
 
     # get django db settings
 
