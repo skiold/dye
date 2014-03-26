@@ -3,6 +3,10 @@ import private_settings
 DEBUG = False
 TEMPLATE_DEBUG = DEBUG
 
+# used in admin template so we know which site we're looking at
+DEPLOY_ENV = "production"
+DEPLOY_ENV_NAME = "Production Server"
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',  # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
@@ -17,11 +21,18 @@ DATABASES = {
     }
 }
 
+#{% if cookiecutter.django_type == "normal" or cookiecutter.django_type == "cms" %}######### HAYSTACK SEARCH CONFIGURATION
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine',
+        'URL': 'http://10.12.0.1:9200/',  # lin-elasticsearch via openvpn
+        'INDEX_NAME': '{{ cookiecutter.project_name }}_%s' % DEPLOY_ENV,
+    },
+}
+#{% endif %}
+
 EMAIL_HOST = 'localhost'
 
 EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
-
-# used in admin template so we know which site we're looking at
-DEPLOY_ENV = "Production Server"
 
 # vi: ft=python

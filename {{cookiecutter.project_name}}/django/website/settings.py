@@ -122,6 +122,7 @@ THIRD_PARTY_APPS = (
     'django_extensions',
     'easy_thumbnails',
     'registration',
+    'haystack',
     #{% endif %}
     #{% if cookiecutter.django_type == "cms" %}
     'djangocms_text_ckeditor',
@@ -208,6 +209,20 @@ ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ########## END AUTHENTICATION CONFIGURATION
 
+
+#{% if cookiecutter.django_type == "normal" or cookiecutter.django_type == "cms" %}######### HAYSTACK SEARCH CONFIGURATION
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine',
+        'URL': 'http://127.0.0.1:9200/',
+        'INDEX_NAME': '{{ cookiecutter.project_name }}',
+    },
+}
+
+HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+HAYSTACK_SEARCH_RESULTS_PER_PAGE = 1000
+########## END HAYSTACK SEARCH CONFIGURATION
+#{% endif %}
 
 ########## Custom user app defaults
 # Select the correct user model
@@ -330,12 +345,12 @@ if DEBUG is False:
     # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
     #ALLOWED_HOSTS = ["*"]
     ALLOWED_HOSTS = [
-        '.{{ domain_name }}',
-        'www.{{ domain_name }}',
-        'fen-vz-{{ project_name }}.fen.aptivate.org',
-        'fen-vz-{{ project_name }}-dev.fen.aptivate.org',
-        '{{ project_name }}.dev.aptivate.org',
-        '{{ project_name }}.stage.aptivate.org',
+        '.{{ cookiecutter.domain_name }}',
+        'www.{{ cookiecutter.domain_name }}',
+        'fen-vz-{{ cookiecutter.project_name }}.fen.aptivate.org',
+        'fen-vz-{{ cookiecutter.project_name }}-dev.fen.aptivate.org',
+        '{{ cookiecutter.project_name }}.dev.aptivate.org',
+        '{{ cookiecutter.project_name }}.stage.aptivate.org',
     ]
     ########## END SITE CONFIGURATION
 
