@@ -284,7 +284,7 @@ def _install_django_jenkins():
         packages = ['django-jenkins==%s' % env['django_jenkins_version']]
     else:
         packages = ['django-jenkins']
-    packages += ['pylint', 'coverage']
+    packages += ['pylint', 'coverage', 'pytest-cov==1.6']
 
     pip_bin = path.join(env['ve_dir'], 'bin', 'pip')
     for package in packages:
