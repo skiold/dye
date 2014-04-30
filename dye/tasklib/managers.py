@@ -358,8 +358,12 @@ class DjangoManager(PythonAppManager):
             cache_table = self.get_cache_table()
             if cache_table and not self.db.test_db_table_exists(cache_table):
                 self.manage_py(['createcachetable', cache_table])
-            self.manage_py(['syncdb', '--noinput'])
+            self.manage_py(['syncdb', '--noinput', '--no-initial-data'])
             # always call migrate - shouldn't fail (I think)
+            # first without initial data:
+            self.manage_py(['migrate', '--noinput', '--no-initial-data'])
+            # then with initial data, AFTER tables have been created:
+            self.manage_py(['syncdb', '--noinput'])
             self.manage_py(['migrate', '--noinput'])
 
     def check_settings_imports_local_settings(self):
