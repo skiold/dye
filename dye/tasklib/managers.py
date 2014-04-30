@@ -436,6 +436,12 @@ class DjangoManager(PythonAppManager):
     def collect_static(self):
         return self.manage_py(["collectstatic", "--noinput"])
 
+        sys.path.append(self.django_settings_dir)
+        import settings
+        if 'django_assets' in settings.INSTALLED_APPS:
+            self.manage_py(['assets', 'clean'])
+            self.manage_py(['assets', 'build'])
+
     def install_django_jenkins(self):
         """ ensure that pip has installed the django-jenkins thing """
         logging.warning("### Installing Jenkins packages")
