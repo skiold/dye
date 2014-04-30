@@ -89,8 +89,8 @@ class MysqlMixin(object):
     TEST_PASSWORD = 'dye_password'
     TEST_DB = 'dyedb'
     TEST_TABLE = 'dyetable'
-    TEST_RESTORE_FILE = path.join(path.dirname(__file__), 'data', 'testrestore.sql')
-    TEST_DUMP_FILE = path.join(path.dirname(__file__), 'data', 'testdump.sql')
+    TEST_RESTORE_FILE = path.join(path.dirname(__file__), 'data', 'testrestore', 'testrestore.sql')
+    TEST_DUMP_FILE = path.join(path.dirname(__file__), 'data', 'testrestore', 'testdump.sql')
 
     def setUp(self):
         self.db = database.get_db_manager(
