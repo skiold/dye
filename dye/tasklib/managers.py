@@ -326,6 +326,7 @@ class DjangoManager(PythonAppManager):
         # import settings from the django dir
         sys.path.append(self.django_settings_dir)
         import settings
+        reload(settings)  # required for tests when swapping settings in single test run
         if not hasattr(settings, 'CACHES'):
             return None
         if not settings.CACHES['default']['BACKEND'].endswith('DatabaseCache'):

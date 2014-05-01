@@ -64,6 +64,10 @@ class ManagerTestMixin(object):
         with open(settings_path, 'w') as f:
             f.write('import local_settings')
 
+    def sys_path_remove(self, sys_path):
+        if sys_path in sys.path:
+            sys.path.remove(sys_path)
+
 
 class TestAppManagerInit(ManagerTestMixin, unittest.TestCase):
 
@@ -225,7 +229,39 @@ class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
 
         self.assertFalse(path.exists(local_settings_pyc_path))
 
+
+class TestGetCacheTable(ManagerTestMixin, unittest.TestCase):
+
+    def setUp(self):
+        self.create_manager()
+        self.settings_base = path.join(path.dirname(__file__), 'data', 'cachedir')
+
+    def test_get_cache_table_returns_none_when_no_cache_at_all(self):
+        self.manager.django_settings_dir = path.join(self.settings_base, 'nocache')
+        try:
+            self.assertIsNone(self.manager.get_cache_table())
+        finally:
+            self.sys_path_remove(self.manager.django_settings_dir)
+
+    def test_get_cache_table_returns_none_when_cache_is_not_database(self):
+        self.manager.django_settings_dir = path.join(self.settings_base, 'nondbcache')
+        try:
+            self.assertIsNone(self.manager.get_cache_table())
+        finally:
+            self.sys_path_remove(self.manager.django_settings_dir)
+
+    def test_get_cache_table_returns_table_name_when_db_cache_in_use(self):
+        self.manager.django_settings_dir = path.join(self.settings_base, 'dbcache')
+        try:
+            self.assertEqual('cachetable', self.manager.get_cache_table())
+        finally:
+            self.sys_path_remove(self.manager.django_settings_dir)
+
+    # rm all pyc
+
     # find migrations
+
+    # create private settings
 
     # create rollback version - only in fabric
 
@@ -237,10 +273,6 @@ class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
 
     # update ve
 
-    # create private settings
-
-    # get cache table
-
     # update db
 
     # update git submodules
@@ -248,8 +280,6 @@ class TestLinkLocalSettings(ManagerTestMixin, unittest.TestCase):
     # manage py jenkins
 
     # run jenkins
-
-    # rm all pyc
 
     # deploy
 
