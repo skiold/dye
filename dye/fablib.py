@@ -760,7 +760,7 @@ def create_deploy_virtualenv(in_next=False, full_rebuild=True):
     else:
         bootstrap_path = path.join(env.deploy_dir, 'bootstrap.py')
     if full_rebuild:
-        args = '--full-rebuild --quiet'
+        args = '--full-rebuild --quiet --force'
     else:
         args = '--quiet'
     sudo_or_run('%s %s %s' % (_get_python(), bootstrap_path, args))
