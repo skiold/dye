@@ -333,6 +333,12 @@ class DjangoManager(PythonAppManager):
             return None
         return settings.CACHES['default']['LOCATION']
 
+    def get_django_version(self):
+        if not hasattr(self, 'django_version'):
+            version_string = self.manage_py(['--version'])[0].strip().split('.')
+            self.django_version = [int(x) for x in version_string]
+        return self.django_version
+
     def update_db(self, syncdb=True, drop_test_db=True, force_use_migrations=True, database='default'):
         """ create the database, and do syncdb and migrations
         Note that if syncdb is true, then migrations will always be done if one of
@@ -359,13 +365,24 @@ class DjangoManager(PythonAppManager):
             cache_table = self.get_cache_table()
             if cache_table and not self.db.test_db_table_exists(cache_table):
                 self.manage_py(['createcachetable', cache_table])
-            self.manage_py(['syncdb', '--noinput', '--no-initial-data'])
-            # always call migrate - shouldn't fail (I think)
-            # first without initial data:
-            self.manage_py(['migrate', '--noinput', '--no-initial-data'])
-            # then with initial data, AFTER tables have been created:
-            self.manage_py(['syncdb', '--noinput'])
-            self.manage_py(['migrate', '--noinput'])
+
+            django_version = self.get_django_version()
+            if django_version[0] >= 1 and django_version[1] >= 5:
+                # syncdb with --no-initial-data appears in Django 1.5
+                self.manage_py(['syncdb', '--noinput', '--no-initial-data'])
+                # always call migrate - shouldn't fail (I think)
+                # first without initial data:
+                self.manage_py(['migrate', '--noinput', '--no-initial-data'])
+                # then with initial data, AFTER tables have been created:
+                self.manage_py(['syncdb', '--noinput'])
+                self.manage_py(['migrate', '--noinput'])
+            else:
+                self.manage_py(['syncdb', '--noinput'])
+                # always call migrate - shouldn't fail (I think)
+                # first without initial data:
+                self.manage_py(['migrate', '--noinput', '--no-initial-data'])
+                # then with initial data, AFTER tables have been created:
+                self.manage_py(['migrate', '--noinput'])
 
     def check_settings_imports_local_settings(self):
         # check that settings imports local_settings, as it always should,
