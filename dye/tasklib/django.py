@@ -290,9 +290,10 @@ def create_private_settings():
         #os.chmod(private_settings_file, 0400)
 
 def cleanup_sessions():
+    """ run session cleanup commands on Django 1.3+ """
     django_version = _get_django_version()
 
-    if django_version[1] >= 1:
+    if django_version[0] >= 1:
         if django_version[1] >= 5:
             _manage_py(['clearsessions'])
         elif django_version[1] >= 3:
